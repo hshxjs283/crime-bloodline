@@ -1,0 +1,127 @@
+#include "CrimeBloodlineWorldWeather.h"
+
+ACrimeBloodlineWorldWeather::ACrimeBloodlineWorldWeather()
+{
+    PrimaryActorTick.bCanEverTick = true;
+    SwitchMapRegion(EGameMapRegion::Russia);
+}
+
+void ACrimeBloodlineWorldWeather::BeginPlay()
+{
+    Super::BeginPlay();
+    SwitchMapRegion(Region);
+}
+
+void ACrimeBloodlineWorldWeather::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    AdvanceWorldClock(DeltaTime);
+
+    WeatherRollTimer += DeltaTime;
+    if (WeatherRollTimer >= WeatherRollIntervalSeconds)
+    {
+        WeatherRollTimer = 0.0f;
+        RollWeatherForCurrentRegion();
+    }
+}
+
+void ACrimeBloodlineWorldWeather::SwitchMapRegion(EGameMapRegion NewRegion)
+{
+    Region = NewRegion;
+    RollWeatherForCurrentRegion();
+}
+
+void ACrimeBloodlineWorldWeather::AdvanceWorldClock(float DeltaTime)
+{
+    // مرور الوقت بواقعية متوازنة: كل 10 ثواني حقيقية = ~10 دقائق داخل اللعبة
+    const float GameHoursPerRealSecond = 1.0f / 60.0f;
+    EnvironmentState.TimeOfDayHours += GameHoursPerRealSecond * DeltaTime;
+
+    if (EnvironmentState.TimeOfDayHours >= 24.0f)
+    {
+        EnvironmentState.TimeOfDayHours -= 24.0f;
+        EnvironmentState.DayNumber += 1;
+    }
+}
+
+void ACrimeBloodlineWorldWeather::RollWeatherForCurrentRegion()
+{
+    const bool bIsNight = (EnvironmentState.TimeOfDayHours < 6.0f || EnvironmentState.TimeOfDayHours >= 19.0f);
+
+    if (Region == EGameMapRegion::Russia)
+    {
+        const int32 Roll = FMath::RandRange(1, 100);
+        if (Roll <= 25)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::Snow;
+            EnvironmentState.TemperatureCelsius = bIsNight ? -18.0f : -6.0f;
+            EnvironmentState.VisibilityMultiplier = 0.55f;
+        }
+        else if (Roll <= 50)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::Rain;
+            EnvironmentState.TemperatureCelsius = bIsNight ? 4.0f : 10.0f;
+            EnvironmentState.VisibilityMultiplier = 0.70f;
+        }
+        else if (Roll <= 70)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::Fog;
+            EnvironmentState.TemperatureCelsius = bIsNight ? 1.0f : 7.0f;
+            EnvironmentState.VisibilityMultiplier = 0.35f;
+        }
+        else if (Roll <= 85)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::FreezingCold;
+            EnvironmentState.TemperatureCelsius = bIsNight ? -24.0f : -12.0f;
+            EnvironmentState.VisibilityMultiplier = 0.90f;
+        }
+        else
+        {
+            EnvironmentState.ActiveWeather = bIsNight ? EWeatherCondition::ClearNight : EWeatherCondition::ClearDay;
+            EnvironmentState.TemperatureCelsius = bIsNight ? -5.0f : 6.0f;
+            EnvironmentState.VisibilityMultiplier = 1.0f;
+        }
+    }
+    else // صحراء الربع الخالي: حر نهار، برودة ليل، وعواصف ترابية
+    {
+        const int32 Roll = FMath::RandRange(1, 100);
+        if (Roll <= 25)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::Sandstorm;
+            EnvironmentState.TemperatureCelsius = bIsNight ? 14.0f : 38.0f;
+            EnvironmentState.VisibilityMultiplier = 0.25f;
+        }
+        else if (!bIsNight && Roll <= 65)
+        {
+            EnvironmentState.ActiveWeather = EWeatherCondition::Heatwave;
+            EnvironmentState.TemperatureCelsius = 47.0f;
+            EnvironmentState.VisibilityMultiplier = 0.85f;
+        }
+        else
+        {
+            EnvironmentState.ActiveWeather = bIsNight ? EWeatherCondition::ClearNight : EWeatherCondition::ClearDay;
+            EnvironmentState.TemperatureCelsius = bIsNight ? 6.0f : 34.0f;
+            EnvironmentState.VisibilityMultiplier = 1.0f;
+        }
+    }
+}
+
+float ACrimeBloodlineWorldWeather::ComputeThermalComfort(bool bWearingHeavyColdGear, bool bWearingDesertHeatGear) const
+{
+    float Comfort = 100.0f;
+    const float Temp = EnvironmentState.TemperatureCelsius;
+
+    if (Temp < 0.0f)
+    {
+        const float ColdPenalty = FMath::Abs(Temp) * (bWearingHeavyColdGear ? 0.6f : 2.2f);
+        Comfort -= ColdPenalty;
+    }
+    else if (Temp > 35.0f)
+    {
+        const float HeatPenalty = (Temp - 35.0f) * (bWearingDesertHeatGear ? 1.0f : 3.2f);
+        Comfort -= HeatPenalty;
+    }
+
+    return FMath::Clamp(Comfort, 0.0f, 100.0f);
+}
