@@ -1,0 +1,199 @@
+#include "CrimeBloodlineSystem.h"
+#include "Kismet/GameplayStatics.h"
+
+ACrimeBloodlineSystem::ACrimeBloodlineSystem()
+{
+    PrimaryActorTick.bCanEverTick = true;
+    SelectHitmanCharacter();
+}
+
+void ACrimeBloodlineSystem::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (!LoadGameProgress())
+    {
+        SelectHitmanCharacter();
+        SaveGameProgress();
+    }
+}
+
+void ACrimeBloodlineSystem::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    UpdateRealismVitals(DeltaTime);
+
+    AutoSaveTimer += DeltaTime;
+    if (AutoSaveTimer >= AutoSaveIntervalSeconds)
+    {
+        AutoSaveTimer = 0.0f;
+        SaveGameProgress();
+    }
+}
+
+void ACrimeBloodlineSystem::SelectHitmanCharacter()
+{
+    CurrentArchetype = EPlayerArchetype::Hitman;
+    CurrentRegion = EGameMapRegion::Russia;
+
+    CurrentProfile.CharacterName = TEXT("القاتل المأجور");
+    CurrentProfile.HeightCm = 200.0f;
+    CurrentProfile.WeightKg = 115.0f;
+    CurrentProfile.BuildType = TEXT("Muscular Heavy");
+    CurrentProfile.SkinTone = TEXT("Clear Dark Tan / Brown");
+    CurrentProfile.FacialFeatures = TEXT("Sharp angular face, hollow cheekbones, intense gaze");
+    CurrentProfile.OutfitStyle = TEXT("Matte Black Leather Jacket, Black Coat, Shirt, Trousers & Boots");
+
+    const float ScaleRatio = CurrentProfile.HeightCm / 180.0f;
+    SetActorScale3D(FVector(ScaleRatio, ScaleRatio * 1.08f, ScaleRatio));
+}
+
+void ACrimeBloodlineSystem::SelectFemaleOperativeCharacter()
+{
+    CurrentArchetype = EPlayerArchetype::Hitman;
+    CurrentRegion = EGameMapRegion::Russia;
+
+    CurrentProfile.CharacterName = TEXT("لينا");
+    CurrentProfile.HeightCm = 172.0f;
+    CurrentProfile.WeightKg = 61.0f;
+    CurrentProfile.BuildType = TEXT("Lean Athletic & Agile");
+    CurrentProfile.SkinTone = TEXT("Light Warm Olive");
+    CurrentProfile.FacialFeatures = TEXT("Sharp cheekbones, defined brows, straight nose, dark hazel eyes, jet-black hair");
+    CurrentProfile.OutfitStyle = TEXT("Dark 90s Trench Coat, Fitted Turtleneck, Dark Cargo Pants & Combat Boots");
+
+    const float ScaleRatio = CurrentProfile.HeightCm / 175.0f;
+    SetActorScale3D(FVector(ScaleRatio * 0.96f, ScaleRatio * 0.94f, ScaleRatio));
+}
+
+void ACrimeBloodlineSystem::SelectGangMemberCharacter(FString CustomName)
+{
+    CurrentArchetype = EPlayerArchetype::GangMember;
+    CurrentGangRank = EGangRank::NewMember;
+
+    CurrentProfile.CharacterName = CustomName.IsEmpty() ? TEXT("عضو عصابة جديد") : CustomName;
+    CurrentProfile.HeightCm = 182.0f;
+    CurrentProfile.WeightKg = 82.0f;
+    CurrentProfile.BuildType = TEXT("Street Athletic");
+    CurrentProfile.SkinTone = TEXT("Olive / Medium");
+    CurrentProfile.FacialFeatures = TEXT("Defined jaw, alert eyes, scar above left brow");
+    CurrentProfile.OutfitStyle = TEXT("80s-2000s Bomber Jacket, Denim/Cargo Jeans, Sneakers");
+}
+
+void ACrimeBloodlineSystem::UpdateRealismVitals(float DeltaTime)
+{
+    const float HungerDrainPerSec = 0.04f;
+    const float ThirstDrainPerSec = 0.06f;
+    const float FatigueGainPerSec = 0.05f;
+
+    float RegionThirstMultiplier = (CurrentRegion == EGameMapRegion::EmptyQuarter) ? 1.45f : 1.0f;
+
+    CurrentVitals.Hunger = FMath::Clamp(CurrentVitals.Hunger - (HungerDrainPerSec * DeltaTime), 0.0f, 100.0f);
+    CurrentVitals.Thirst = FMath::Clamp(CurrentVitals.Thirst - (ThirstDrainPerSec * RegionThirstMultiplier * DeltaTime), 0.0f, 100.0f);
+    CurrentVitals.Fatigue = FMath::Clamp(CurrentVitals.Fatigue + (FatigueGainPerSec * DeltaTime), 0.0f, 100.0f);
+    CurrentVitals.Energy = FMath::Clamp(100.0f - CurrentVitals.Fatigue, 0.0f, 100.0f);
+}
+
+void ACrimeBloodlineSystem::EatMeal(float RestoreHunger, float Cost)
+{
+    if (PlayerCash >= Cost)
+    {
+        PlayerCash -= Cost;
+        CurrentVitals.Hunger = FMath::Clamp(CurrentVitals.Hunger + RestoreHunger, 0.0f, 100.0f);
+        SaveGameProgress();
+    }
+}
+
+void ACrimeBloodlineSystem::DrinkWater(float RestoreThirst, float Cost)
+{
+    if (PlayerCash >= Cost)
+    {
+        PlayerCash -= Cost;
+        CurrentVitals.Thirst = FMath::Clamp(CurrentVitals.Thirst + RestoreThirst, 0.0f, 100.0f);
+        SaveGameProgress();
+    }
+}
+
+void ACrimeBloodlineSystem::SleepRest(float HoursSlept)
+{
+    const float ClampedHours = FMath::Clamp(HoursSlept, 1.0f, 12.0f);
+    CurrentVitals.Fatigue = FMath::Clamp(CurrentVitals.Fatigue - (ClampedHours * 12.0f), 0.0f, 100.0f);
+    CurrentVitals.Energy = FMath::Clamp(100.0f - CurrentVitals.Fatigue, 0.0f, 100.0f);
+    CurrentVitals.Hunger = FMath::Clamp(CurrentVitals.Hunger - (ClampedHours * 3.0f), 0.0f, 100.0f);
+    CurrentVitals.Thirst = FMath::Clamp(CurrentVitals.Thirst - (ClampedHours * 4.0f), 0.0f, 100.0f);
+    SaveGameProgress();
+}
+
+void ACrimeBloodlineSystem::AddReputationAndRankProgress(int32 Points)
+{
+    PlayerReputation += Points;
+
+    if (CurrentArchetype == EPlayerArchetype::GangMember)
+    {
+        if (PlayerReputation >= 1000)      CurrentGangRank = EGangRank::Boss;
+        else if (PlayerReputation >= 700) CurrentGangRank = EGangRank::Underboss;
+        else if (PlayerReputation >= 450) CurrentGangRank = EGangRank::SquadLead;
+        else if (PlayerReputation >= 250) CurrentGangRank = EGangRank::Trusted;
+        else if (PlayerReputation >= 100) CurrentGangRank = EGangRank::KnownMember;
+        else                              CurrentGangRank = EGangRank::NewMember;
+    }
+
+    SaveGameProgress();
+}
+
+bool ACrimeBloodlineSystem::SaveGameProgress()
+{
+    UCrimeBloodlineSaveGame* SaveInstance = Cast<UCrimeBloodlineSaveGame>(
+        UGameplayStatics::CreateSaveGameObject(UCrimeBloodlineSaveGame::StaticClass())
+    );
+
+    if (!SaveInstance)
+    {
+        return false;
+    }
+
+    SaveInstance->SaveSlotName = SaveSlot;
+    SaveInstance->UserIndex = SaveUserIndex;
+    SaveInstance->SelectedArchetype = CurrentArchetype;
+    SaveInstance->GangRank = CurrentGangRank;
+    SaveInstance->CurrentRegion = CurrentRegion;
+    SaveInstance->ActiveProfile = CurrentProfile;
+    SaveInstance->Vitals = CurrentVitals;
+    SaveInstance->CashMoney = PlayerCash;
+    SaveInstance->Reputation = PlayerReputation;
+    SaveInstance->LastWorldLocation = GetActorLocation();
+    SaveInstance->LastSavedAt = FDateTime::Now();
+
+    return UGameplayStatics::SaveGameToSlot(SaveInstance, SaveSlot, SaveUserIndex);
+}
+
+bool ACrimeBloodlineSystem::LoadGameProgress()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(SaveSlot, SaveUserIndex))
+    {
+        return false;
+    }
+
+    USaveGame* LoadedObject = UGameplayStatics::LoadGameFromSlot(SaveSlot, SaveUserIndex);
+    UCrimeBloodlineSaveGame* SaveInstance = Cast<UCrimeBloodlineSaveGame>(LoadedObject);
+
+    if (!SaveInstance)
+    {
+        return false;
+    }
+
+    CurrentArchetype = SaveInstance->SelectedArchetype;
+    CurrentGangRank = SaveInstance->GangRank;
+    CurrentRegion = SaveInstance->CurrentRegion;
+    CurrentProfile = SaveInstance->ActiveProfile;
+    CurrentVitals = SaveInstance->Vitals;
+    PlayerCash = SaveInstance->CashMoney;
+    PlayerReputation = SaveInstance->Reputation;
+
+    if (!SaveInstance->LastWorldLocation.IsZero())
+    {
+        SetActorLocation(SaveInstance->LastWorldLocation);
+    }
+
+    return true;
+}
