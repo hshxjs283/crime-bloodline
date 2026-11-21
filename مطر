@@ -1,0 +1,64 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineMudSystem.generated.h"
+
+USTRUCT(BlueprintType)
+struct FMudSurfaceState
+{
+    GENERATED_BODY()
+
+    // نسبة تشبع الأرض بالماء والطين (0.0 جاف تماماً، 1.0 طين ثقيل وموحل)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Surface")
+    float MudSaturation = 0.0f;
+
+    // عمق الطين أو الوحل في المنطقة الحالية (0.0 إلى 1.0)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Surface")
+    float MudDepth = 0.0f;
+
+    // معامل سرعة المشي والركض على الطين (1.0 سرعة طبيعية، أقل = أبطأ وأثقل)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Movement")
+    float WalkSpeedMultiplier = 1.0f;
+
+    // معامل تماسك وسرعة السيارات على الطين
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Vehicles")
+    float VehicleGripMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Vehicles")
+    float VehicleSpeedMultiplier = 1.0f;
+
+    // هل يغرز الإطار أو يعلق إذا كانت السيارة غير مجهزة للدفع الرباعي أو الطرق الوعرة؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Vehicles")
+    bool bVehicleCanGetStuck = false;
+
+    // هل تترك الخطوات والسيارات آثار طين واضحة على الأرض؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mud|Visuals")
+    bool bLeavesMudTracks = false;
+};
+
+UCLASS()
+class ACrimeBloodlineMudSystem : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineMudSystem();
+
+    virtual void Tick(float DeltaTime) override;
+
+    // تحديث حالة الطين بناءً على المطر أو الجفاف
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Mud")
+    void UpdateMudFromRain(float DeltaTime, bool bIsRaining, float RainIntensity, bool bIsDirtOrSoilTerrain);
+
+    // حساب تأثير الطين على اللاعب (المشي والركض والملابس/الأحذية)
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Mud")
+    void EvaluatePlayerMudEffect(bool bWearingMudBoots);
+
+    // حساب تأثير الطين على المركبات (الدفع الرباعي، إطارات الطين، والانزلاق)
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Mud")
+    void EvaluateVehicleMudEffect(bool bHasAllWheelDrive, bool bHasOffroadTires, float CurrentVehicleSpeed);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Mud")
+    FMudSurfaceState MudState;
+};
