@@ -1,0 +1,83 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineTypes.h"
+#include "CrimeBloodlineSystem.generated.h"
+
+UCLASS()
+class ACrimeBloodlineSystem : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineSystem();
+
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
+
+    // اختيار الشخصية (قاتل مأجور أو عضو عصابة أو شخصية البنت)
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Character")
+    void SelectHitmanCharacter();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Character")
+    void SelectFemaleOperativeCharacter();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Character")
+    void SelectGangMemberCharacter(FString CustomName = TEXT("عضو جديد"));
+
+    // تحديث الواقعية (الجوع، العطش، التعب، النوم، الأكل، الشرب)
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void UpdateRealismVitals(float DeltaTime);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void EatMeal(float RestoreHunger = 35.0f, float Cost = 15.0f);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void DrinkWater(float RestoreThirst = 40.0f, float Cost = 5.0f);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void SleepRest(float HoursSlept = 6.0f);
+
+    // ترقية رتبة العصابة والسمعة
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Gang")
+    void AddReputationAndRankProgress(int32 Points);
+
+    // حفظ وتحميل التقدم
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|SaveLoad")
+    bool SaveGameProgress();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|SaveLoad")
+    bool LoadGameProgress();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|State")
+    EPlayerArchetype CurrentArchetype = EPlayerArchetype::Hitman;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|State")
+    EGangRank CurrentGangRank = EGangRank::NewMember;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|State")
+    EGameMapRegion CurrentRegion = EGameMapRegion::Russia;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|State")
+    FCharacterPhysicalProfile CurrentProfile;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|State")
+    FSurvivalVitals CurrentVitals;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Economy")
+    float PlayerCash = 500.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Economy")
+    int32 PlayerReputation = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|SaveLoad")
+    FString SaveSlot = TEXT("CrimeBloodline_Save_01");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|SaveLoad")
+    int32 SaveUserIndex = 0;
+
+private:
+    float AutoSaveTimer = 0.0f;
+    const float AutoSaveIntervalSeconds = 120.0f; // حفظ تلقائي كل دقيقتين
+};
