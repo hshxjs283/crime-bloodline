@@ -1,0 +1,111 @@
+#include "CrimeBloodlineSurvivalVitals.h"
+
+ACrimeBloodlineSurvivalVitals::ACrimeBloodlineSurvivalVitals()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    ConfigureArchetypeDefaults(ECharacterArchetype::Hitman);
+}
+
+void ACrimeBloodlineSurvivalVitals::ConfigureArchetypeDefaults(ECharacterArchetype NewArchetype)
+{
+    CharacterArchetype = NewArchetype;
+
+    VitalsState.HungerNeed = 15.0f;
+    VitalsState.ThirstNeed = 20.0f;
+    VitalsState.FatigueLevel = 10.0f;
+    VitalsState.Health = 100.0f;
+    VitalsState.Stamina = 100.0f;
+
+    switch (CharacterArchetype)
+    {
+    case ECharacterArchetype::Hitman:
+        // بنية ثقيلة وقوية: ضرر اشتباك أعلى، لكن حركة أبطأ واستهلاك أعلى عند الجهد الطويل
+        VitalsState.MovementSpeedMultiplier = 0.92f;
+        VitalsState.MeleeDamageMultiplier = 1.30f;
+        VitalsState.AgilityMultiplier = 0.85f;
+        break;
+
+    case ECharacterArchetype::Operative:
+        // لينا: رشيقة وسريعة ومناورة عالية
+        VitalsState.MovementSpeedMultiplier = 1.12f;
+        VitalsState.MeleeDamageMultiplier = 0.95f;
+        VitalsState.AgilityMultiplier = 1.25f;
+        break;
+
+    case ECharacterArchetype::GangMember:
+    default:
+        // توازن عملي بين القوة والحركة
+        VitalsState.MovementSpeedMultiplier = 1.00f;
+        VitalsState.MeleeDamageMultiplier = 1.05f;
+        VitalsState.AgilityMultiplier = 1.00f;
+        break;
+    }
+}
+
+void ACrimeBloodlineSurvivalVitals::TickSurvivalVitals(float DeltaTime, float AmbientTemperatureCelsius, bool bSprinting, bool bHighHeatRegion)
+{
+    const float SafeDelta = FMath::Max(0.0f, DeltaTime);
+    const float HeatFactor = (bHighHeatRegion || AmbientTemperatureCelsius >= 38.0f) ? 1.5f : 1.0f;
+    const float SprintFactor = bSprinting ? 1.6f : 1.0f;
+
+    // زيادة الجوع والعطش والتعب تدريجياً
+    VitalsState.HungerNeed = FMath::Clamp(VitalsState.HungerNeed + (0.35f * SprintFactor * SafeDelta), 0.0f, 100.0f);
+    VitalsState.ThirstNeed = FMath::Clamp(VitalsState.ThirstNeed + (0.55f * HeatFactor * SprintFactor * SafeDelta), 0.0f, 100.0f);
+    VitalsState.FatigueLevel = FMath::Clamp(VitalsState.FatigueLevel + (0.40f * SprintFactor * SafeDelta), 0.0f, 100.0f);
+
+    // استهلاك الطاقة أثناء الركض أو تعويضها عند التوقف
+    if (bSprinting)
+    {
+        const float StaminaDrain = (12.0f / FMath::Max(0.5f, VitalsState.AgilityMultiplier)) * SafeDelta;
+        VitalsState.Stamina = FMath::Clamp(VitalsState.Stamina - StaminaDrain, 0.0f, 100.0f);
+    }
+    else
+    {
+        const float StaminaRecovery = (10.0f * (1.0f - (VitalsState.FatigueLevel / 150.0f))) * SafeDelta;
+        VitalsState.Stamina = FMath::Clamp(VitalsState.Stamina + StaminaRecovery, 0.0f, 100.0f);
+    }
+
+    // إذا وصل العطش أو الجوع لمستوى حرج تبدأ الصحة بالتأثر
+    if (VitalsState.ThirstNeed >= 90.0f || VitalsState.HungerNeed >= 95.0f)
+    {
+        VitalsState.Health = FMath::Clamp(VitalsState.Health - (1.5f * SafeDelta), 0.0f, 100.0f);
+    }
+
+    // تعديل سرعة الحركة بحسب التعب والعطش ونوع الشخصية
+    float BaseSpeed = 1.0f;
+    if (CharacterArchetype == ECharacterArchetype::Operative)
+    {
+        BaseSpeed = 1.12f;
+    }
+    else if (CharacterArchetype == ECharacterArchetype::Hitman)
+    {
+        BaseSpeed = 0.92f;
+    }
+
+    const float FatiguePenalty = (VitalsState.FatigueLevel / 100.0f) * 0.25f;
+    const float ThirstPenalty = (VitalsState.ThirstNeed / 100.0f) * 0.20f;
+    VitalsState.MovementSpeedMultiplier = FMath::Clamp(BaseSpeed - FatiguePenalty - ThirstPenalty, 0.40f, 1.25f);
+}
+
+void ACrimeBloodlineSurvivalVitals::ConsumeFoodAndWater(float FoodAmount, float WaterAmount, float RestAmount)
+{
+    VitalsState.HungerNeed = FMath::Clamp(VitalsState.HungerNeed - FMath::Max(0.0f, FoodAmount), 0.0f, 100.0f);
+    VitalsState.ThirstNeed = FMath::Clamp(VitalsState.ThirstNeed - FMath::Max(0.0f, WaterAmount), 0.0f, 100.0f);
+    VitalsState.FatigueLevel = FMath::Clamp(VitalsState.FatigueLevel - FMath::Max(0.0f, RestAmount), 0.0f, 100.0f);
+
+    if (RestAmount > 0.0f)
+    {
+        VitalsState.Stamina = FMath::Clamp(VitalsState.Stamina + (RestAmount * 0.8f), 0.0f, 100.0f);
+    }
+}
+
+void ACrimeBloodlineSurvivalVitals::ApplyInjury(float DamageAmount)
+{
+    if (DamageAmount <= 0.0f)
+    {
+        return;
+    }
+
+    VitalsState.Health = FMath::Clamp(VitalsState.Health - DamageAmount, 0.0f, 100.0f);
+    VitalsState.FatigueLevel = FMath::Clamp(VitalsState.FatigueLevel + (DamageAmount * 0.25f), 0.0f, 100.0f);
+}
