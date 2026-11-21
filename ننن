@@ -1,0 +1,77 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineTypes.h"
+#include "CrimeBloodlineWorldWeather.generated.h"
+
+UENUM(BlueprintType)
+enum class EWeatherCondition : uint8
+{
+    ClearDay     UMETA(DisplayName = "صحو نهار"),
+    ClearNight   UMETA(DisplayName = "صافٍ ليلاً"),
+    Rain         UMETA(DisplayName = "مطر"),
+    Snow         UMETA(DisplayName = "ثلج"),
+    Fog          UMETA(DisplayName = "ضباب"),
+    Sandstorm    UMETA(DisplayName = "عاصفة ترابية"),
+    Heatwave     UMETA(DisplayName = "موجة حر شديدة"),
+    FreezingCold UMETA(DisplayName = "برد قارس")
+};
+
+USTRUCT(BlueprintType)
+struct FWorldEnvironmentState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Time")
+    float TimeOfDayHours = 12.0f; // من 0.0 إلى 24.0 ساعة
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Time")
+    int32 DayNumber = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Weather")
+    EWeatherCondition ActiveWeather = EWeatherCondition::ClearDay;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Weather")
+    float TemperatureCelsius = 18.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Weather")
+    float VisibilityMultiplier = 1.0f; // يتأثر بالضباب والثلج والعاصفة الترابية
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World|Era")
+    int32 EraYear = 1994; // ضمن نطاق 1980 - 2010
+};
+
+UCLASS()
+class ACrimeBloodlineWorldWeather : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineWorldWeather();
+
+    virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|World")
+    void SwitchMapRegion(EGameMapRegion NewRegion);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|World")
+    void AdvanceWorldClock(float DeltaTime);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|World")
+    void RollWeatherForCurrentRegion();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|World")
+    float ComputeThermalComfort(bool bWearingHeavyColdGear, bool bWearingDesertHeatGear) const;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|World")
+    EGameMapRegion Region = EGameMapRegion::Russia;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|World")
+    FWorldEnvironmentState EnvironmentState;
+
+private:
+    float WeatherRollTimer = 0.0f;
+    const float WeatherRollIntervalSeconds = 180.0f; // تغير الطقس بشكل دوري كل 3 دقائق
+};
