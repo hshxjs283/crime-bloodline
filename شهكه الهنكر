@@ -1,0 +1,81 @@
+#include "CrimeBloodlineReputationTension.h"
+
+ACrimeBloodlineReputationTension::ACrimeBloodlineReputationTension()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    RepTensionState.StreetReputation = 0.0f;
+    RepTensionState.AreaTension = 10.0f;
+    RepTensionState.ReactionLevel = EStreetReactionLevel::Calm;
+    RepTensionState.bWeaponDrawnInPublic = false;
+    RepTensionState.bTrendWorthyMomentTriggered = false;
+    RepTensionState.LastMomentTag = TEXT("لا يوجد حدث بارز حالياً");
+}
+
+void ACrimeBloodlineReputationTension::RegisterStreetEvent(float ReputationDelta, float TensionDelta, bool bWeaponVisible, const FString& MomentLabel)
+{
+    RepTensionState.StreetReputation = FMath::Clamp(RepTensionState.StreetReputation + ReputationDelta, -100.0f, 100.0f);
+    RepTensionState.AreaTension = FMath::Clamp(RepTensionState.AreaTension + TensionDelta, 0.0f, 100.0f);
+    RepTensionState.bWeaponDrawnInPublic = bWeaponVisible;
+
+    if (bWeaponVisible)
+    {
+        RepTensionState.AreaTension = FMath::Clamp(RepTensionState.AreaTension + 12.0f, 0.0f, 100.0f);
+    }
+
+    if (RepTensionState.AreaTension >= 80.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Panic;
+    }
+    else if (RepTensionState.AreaTension >= 50.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Hostile;
+    }
+    else if (RepTensionState.AreaTension >= 25.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Alerted;
+    }
+    else
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Calm;
+    }
+
+    if (!MomentLabel.IsEmpty())
+    {
+        RepTensionState.LastMomentTag = MomentLabel;
+    }
+
+    // اعتبار الحدث لافتاً إذا كان تأثير التوتر أو السمعة كبيراً أو حدث في حالة خطرة
+    const bool bHighImpactEvent = (FMath::Abs(TensionDelta) >= 20.0f) || (FMath::Abs(ReputationDelta) >= 15.0f);
+    RepTensionState.bTrendWorthyMomentTriggered = bHighImpactEvent || (RepTensionState.ReactionLevel == EStreetReactionLevel::Panic);
+}
+
+void ACrimeBloodlineReputationTension::DecayAreaTension(float DeltaTime, float CalmRate)
+{
+    const float SafeDelta = FMath::Max(0.0f, DeltaTime);
+    const float SafeRate = FMath::Max(0.0f, CalmRate);
+
+    RepTensionState.AreaTension = FMath::Clamp(RepTensionState.AreaTension - (SafeRate * SafeDelta), 0.0f, 100.0f);
+
+    if (RepTensionState.AreaTension >= 80.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Panic;
+    }
+    else if (RepTensionState.AreaTension >= 50.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Hostile;
+    }
+    else if (RepTensionState.AreaTension >= 25.0f)
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Alerted;
+    }
+    else
+    {
+        RepTensionState.ReactionLevel = EStreetReactionLevel::Calm;
+        RepTensionState.bWeaponDrawnInPublic = false;
+    }
+}
+
+void ACrimeBloodlineReputationTension::ClearTrendMomentFlag()
+{
+    RepTensionState.bTrendWorthyMomentTriggered = false;
+}
