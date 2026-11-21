@@ -1,0 +1,119 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/SaveGame.h"
+#include "CrimeBloodlineTypes.generated.h"
+
+UENUM(BlueprintType)
+enum class EPlayerArchetype : uint8
+{
+    Hitman      UMETA(DisplayName = "قاتل مأجور"),
+    GangMember  UMETA(DisplayName = "عضو عصابة")
+};
+
+UENUM(BlueprintType)
+enum class EGangRank : uint8
+{
+    NewMember    UMETA(DisplayName = "عضو جديد"),
+    KnownMember  UMETA(DisplayName = "عضو معروف"),
+    Trusted      UMETA(DisplayName = "عضو موثوق"),
+    SquadLead    UMETA(DisplayName = "مسؤول مجموعة"),
+    Underboss    UMETA(DisplayName = "نائب القائد"),
+    Boss         UMETA(DisplayName = "قائد العصابة")
+};
+
+UENUM(BlueprintType)
+enum class EGameMapRegion : uint8
+{
+    Russia         UMETA(DisplayName = "روسيا"),
+    EmptyQuarter   UMETA(DisplayName = "صحراء الربع الخالي")
+};
+
+USTRUCT(BlueprintType)
+struct FCharacterPhysicalProfile
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    FString CharacterName = TEXT("Unnamed");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    float HeightCm = 175.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    float WeightKg = 70.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    FString BuildType = TEXT("Athletic");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    FString SkinTone = TEXT("Medium");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    FString FacialFeatures = TEXT("Sharp jawline");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character|Appearance")
+    FString OutfitStyle = TEXT("80s-2000s Streetwear");
+};
+
+USTRUCT(BlueprintType)
+struct FSurvivalVitals
+{
+    GENERATED_BODY()
+
+    // من 0 إلى 100 حيث 100 = ممتاز / شبعان / مرتاح
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival")
+    float Hunger = 100.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival")
+    float Thirst = 100.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival")
+    float Energy = 100.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival")
+    float Fatigue = 0.0f; // 0 = نشيط، 100 = منهك جداً
+};
+
+UCLASS(BlueprintType)
+class UCrimeBloodlineSaveGame : public USaveGame
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    FString SaveSlotName = TEXT("CrimeBloodline_Save_01");
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    int32 UserIndex = 0;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    EPlayerArchetype SelectedArchetype = EPlayerArchetype::Hitman;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    EGangRank GangRank = EGangRank::NewMember;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    EGameMapRegion CurrentRegion = EGameMapRegion::Russia;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    FCharacterPhysicalProfile ActiveProfile;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    FSurvivalVitals Vitals;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    float CashMoney = 500.0f;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    int32 Reputation = 0;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    FVector LastWorldLocation = FVector::ZeroVector;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    TArray<FString> OwnedPropertiesAndVehicles;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    FDateTime LastSavedAt;
+};
