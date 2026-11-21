@@ -1,0 +1,100 @@
+#include "CrimeBloodlineRussiaWeather.h"
+
+ACrimeBloodlineRussiaWeather::ACrimeBloodlineRussiaWeather()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    RussiaWeatherState.CurrentWeather = ERussiaWeatherType::ClearCold;
+    RussiaWeatherState.WeatherIntensity = 0.0f;
+    RussiaWeatherState.bIsRaining = false;
+    RussiaWeatherState.bIsSnowing = false;
+    RussiaWeatherState.VisibilityDistanceMeters = 900.0f;
+    RussiaWeatherState.RussiaTemperatureCelsius = -6.0f;
+    RussiaWeatherState.MovementSpeedMultiplier = 1.0f;
+    RussiaWeatherState.VehicleGripMultiplier = 1.0f;
+    RussiaWeatherState.bNeedsWinterGear = true;
+}
+
+void ACrimeBloodlineRussiaWeather::UpdateRussiaWeather(float DeltaTime, ERussiaWeatherType TargetWeather, float TargetIntensity, bool bIsNightTime)
+{
+    const float SafeDelta = FMath::Max(0.0f, DeltaTime);
+    const float ClampedIntensity = FMath::Clamp(TargetIntensity, 0.0f, 1.0f);
+
+    RussiaWeatherState.CurrentWeather = TargetWeather;
+    RussiaWeatherState.WeatherIntensity = FMath::FInterpTo(
+        RussiaWeatherState.WeatherIntensity,
+        ClampedIntensity,
+        SafeDelta,
+        1.5f
+    );
+
+    RussiaWeatherState.bIsRaining = (TargetWeather == ERussiaWeatherType::HeavyRain) && (RussiaWeatherState.WeatherIntensity > 0.05f);
+    RussiaWeatherState.bIsSnowing = (TargetWeather == ERussiaWeatherType::Snowfall) && (RussiaWeatherState.WeatherIntensity > 0.05f);
+
+    float BaseTemp = bIsNightTime ? -14.0f : -6.0f;
+    float MaxVisibility = bIsNightTime ? 380.0f : 900.0f;
+    float MinVisibility = 60.0f;
+    float MovementLoss = 0.0f;
+    float GripLoss = 0.0f;
+
+    switch (TargetWeather)
+    {
+    case ERussiaWeatherType::HeavyRain:
+        BaseTemp = bIsNightTime ? 2.0f : 6.0f;
+        MinVisibility = 90.0f;
+        MovementLoss = RussiaWeatherState.WeatherIntensity * 0.20f;
+        GripLoss = RussiaWeatherState.WeatherIntensity * 0.35f;
+        RussiaWeatherState.bNeedsWinterGear = false;
+        break;
+
+    case ERussiaWeatherType::Snowfall:
+        BaseTemp = bIsNightTime ? -18.0f : -10.0f;
+        MinVisibility = 55.0f;
+        MovementLoss = RussiaWeatherState.WeatherIntensity * 0.32f;
+        GripLoss = RussiaWeatherState.WeatherIntensity * 0.45f;
+        RussiaWeatherState.bNeedsWinterGear = true;
+        break;
+
+    case ERussiaWeatherType::DenseFog:
+        BaseTemp = bIsNightTime ? -4.0f : 1.0f;
+        MinVisibility = 25.0f;
+        MovementLoss = RussiaWeatherState.WeatherIntensity * 0.10f;
+        GripLoss = RussiaWeatherState.WeatherIntensity * 0.15f;
+        RussiaWeatherState.bNeedsWinterGear = true;
+        break;
+
+    case ERussiaWeatherType::ClearCold:
+    default:
+        RussiaWeatherState.bNeedsWinterGear = true;
+        break;
+    }
+
+    RussiaWeatherState.RussiaTemperatureCelsius = BaseTemp - (RussiaWeatherState.WeatherIntensity * 4.0f);
+    RussiaWeatherState.VisibilityDistanceMeters = FMath::Lerp(MaxVisibility, MinVisibility, RussiaWeatherState.WeatherIntensity);
+    RussiaWeatherState.MovementSpeedMultiplier = FMath::Clamp(1.0f - MovementLoss, 0.55f, 1.0f);
+    RussiaWeatherState.VehicleGripMultiplier = FMath::Clamp(1.0f - GripLoss, 0.40f, 1.0f);
+}
+
+float ACrimeBloodlineRussiaWeather::EvaluateColdExposure(bool bWearingWinterCoat, bool bInsideVehicleOrBuilding) const
+{
+    if (bInsideVehicleOrBuilding)
+    {
+        return 0.0f;
+    }
+
+    float ColdSeverity = 0.0f;
+    if (RussiaWeatherState.RussiaTemperatureCelsius < 0.0f)
+    {
+        ColdSeverity = FMath::Clamp(FMath::Abs(RussiaWeatherState.RussiaTemperatureCelsius) * 0.75f, 0.0f, 20.0f);
+    }
+    else if (RussiaWeatherState.bIsRaining)
+    {
+        ColdSeverity = 5.0f + (RussiaWeatherState.WeatherIntensity * 6.0f);
+    }
+
+    if (bWearingWinterCoat)
+    {
+        ColdSeverity *= 0.25f;
+    }
+
+    return FMath::Max(0.0f, ColdSeverity);
+}
