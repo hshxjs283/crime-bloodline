@@ -1,0 +1,89 @@
+#include "CrimeBloodlineMudSystem.h"
+
+ACrimeBloodlineMudSystem::ACrimeBloodlineMudSystem()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    MudState.MudSaturation = 0.0f;
+    MudState.MudDepth = 0.0f;
+    MudState.WalkSpeedMultiplier = 1.0f;
+    MudState.VehicleGripMultiplier = 1.0f;
+    MudState.VehicleSpeedMultiplier = 1.0f;
+    MudState.bVehicleCanGetStuck = false;
+    MudState.bLeavesMudTracks = false;
+}
+
+void ACrimeBloodlineMudSystem::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+}
+
+void ACrimeBloodlineMudSystem::UpdateMudFromRain(float DeltaTime, bool bIsRaining, float RainIntensity, bool bIsDirtOrSoilTerrain)
+{
+    const float SafeDelta = FMath::Max(0.0f, DeltaTime);
+    const float ClampedIntensity = FMath::Clamp(RainIntensity, 0.0f, 1.0f);
+
+    if (bIsRaining && bIsDirtOrSoilTerrain && ClampedIntensity > 0.0f)
+    {
+        // تزداد نسبة تشبع الأرض وعمق الطين مع استمرار المطر وشدته
+        const float GainRate = (0.04f + (ClampedIntensity * 0.08f)) * SafeDelta;
+        MudState.MudSaturation = FMath::Clamp(MudState.MudSaturation + GainRate, 0.0f, 1.0f);
+    }
+    else
+    {
+        // تجف التربة تدريجياً عند توقف المطر أو على الأسطح غير الترابية
+        const float DryRate = (bIsDirtOrSoilTerrain ? 0.015f : 0.04f) * SafeDelta;
+        MudState.MudSaturation = FMath::Clamp(MudState.MudSaturation - DryRate, 0.0f, 1.0f);
+    }
+
+    // يبدأ الطين الواضح من تتجاوز نسبة التشبع 0.20
+    MudState.MudDepth = (MudState.MudSaturation > 0.20f)
+        ? FMath::Clamp((MudState.MudSaturation - 0.20f) / 0.80f, 0.0f, 1.0f)
+        : 0.0f;
+
+    MudState.bLeavesMudTracks = (MudState.MudDepth >= 0.15f);
+}
+
+void ACrimeBloodlineMudSystem::EvaluatePlayerMudEffect(bool bWearingMudBoots)
+{
+    if (MudState.MudDepth <= 0.05f)
+    {
+        MudState.WalkSpeedMultiplier = 1.0f;
+        return;
+    }
+
+    // الحذاء المناسب للطين يقلل من ثقل الحركة والانزلاق
+    const float BootProtection = bWearingMudBoots ? 0.45f : 0.0f;
+    const float EffectiveSlowdown = MudState.MudDepth * (0.45f - BootProtection);
+    MudState.WalkSpeedMultiplier = FMath::Clamp(1.0f - EffectiveSlowdown, 0.45f, 1.0f);
+}
+
+void ACrimeBloodlineMudSystem::EvaluateVehicleMudEffect(bool bHasAllWheelDrive, bool bHasOffroadTires, float CurrentVehicleSpeed)
+{
+    if (MudState.MudDepth <= 0.05f)
+    {
+        MudState.VehicleGripMultiplier = 1.0f;
+        MudState.VehicleSpeedMultiplier = 1.0f;
+        MudState.bVehicleCanGetStuck = false;
+        return;
+    }
+
+    float TractionBonus = 0.0f;
+    if (bHasAllWheelDrive)
+    {
+        TractionBonus += 0.25f;
+    }
+    if (bHasOffroadTires)
+    {
+        TractionBonus += 0.30f;
+    }
+
+    const float RawGripLoss = MudState.MudDepth * 0.55f;
+    const float NetGripLoss = FMath::Max(0.0f, RawGripLoss - TractionBonus);
+
+    MudState.VehicleGripMultiplier = FMath::Clamp(1.0f - NetGripLoss, 0.30f, 1.0f);
+    MudState.VehicleSpeedMultiplier = FMath::Clamp(1.0f - (NetGripLoss * 0.85f), 0.35f, 1.0f);
+
+    // إذا كان الطين عميقاً والسيارة بدون دفع رباعي أو إطارات مناسبة وبسرعة بطيئة ممكن تغرز
+    const bool bUnpreparedForDeepMud = (!bHasAllWheelDrive && !bHasOffroadTires);
+    MudState.bVehicleCanGetStuck = (MudState.MudDepth >= 0.70f) && bUnpreparedForDeepMud && (CurrentVehicleSpeed < 250.0f);
+}
