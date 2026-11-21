@@ -1,0 +1,63 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineReputationTension.generated.h"
+
+UENUM(BlueprintType)
+enum class EStreetReactionLevel : uint8
+{
+    Calm        UMETA(DisplayName = "هادئ"),
+    Alerted     UMETA(DisplayName = "حذر واستنفار"),
+    Hostile     UMETA(DisplayName = "عدائي ومواجهة"),
+    Panic       UMETA(DisplayName = "ذعر وهروب جماعي")
+};
+
+USTRUCT(BlueprintType)
+struct FReputationAndTensionState
+{
+    GENERATED_BODY()
+
+    // سمعة اللاعب في الشارع وبين العصابات (-100 مكروه/مخيف، 0 محايد، +100 محترم/مهيب)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reputation")
+    float StreetReputation = 0.0f;
+
+    // مستوى التوتر العام في المنطقة الحالية (0.0 إلى 100.0)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tension")
+    float AreaTension = 10.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tension")
+    EStreetReactionLevel ReactionLevel = EStreetReactionLevel::Calm;
+
+    // هل تم رصد اللاعب وهو يحمل سلاحاً ظاهراً أو في منطقة مشبوهة؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tension|Triggers")
+    bool bWeaponDrawnInPublic = false;
+
+    // هل نفذ اللاعب حركة لافتة أو جريئة (مثل هروب خطير أو تصفية حساب)؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tension|Triggers")
+    bool bTrendWorthyMomentTriggered = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tension|Triggers")
+    FString LastMomentTag = TEXT("لا يوجد حدث بارز حالياً");
+};
+
+UCLASS()
+class ACrimeBloodlineReputationTension : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineReputationTension();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Reputation")
+    void RegisterStreetEvent(float ReputationDelta, float TensionDelta, bool bWeaponVisible, const FString& MomentLabel);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Reputation")
+    void DecayAreaTension(float DeltaTime, float CalmRate = 2.0f);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Reputation")
+    void ClearTrendMomentFlag();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Reputation")
+    FReputationAndTensionState RepTensionState;
+};
