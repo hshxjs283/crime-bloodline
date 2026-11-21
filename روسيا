@@ -1,0 +1,72 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineRussiaWeather.generated.h"
+
+UENUM(BlueprintType)
+enum class ERussiaWeatherType : uint8
+{
+    ClearCold       UMETA(DisplayName = "صحو بارد"),
+    HeavyRain       UMETA(DisplayName = "أمطار غزيرة"),
+    Snowfall        UMETA(DisplayName = "تساقط ثلوج"),
+    DenseFog        UMETA(DisplayName = "ضباب كثيف")
+};
+
+USTRUCT(BlueprintType)
+struct FRussiaWeatherState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Weather")
+    ERussiaWeatherType CurrentWeather = ERussiaWeatherType::ClearCold;
+
+    // شدة الهطول أو الضباب (0.0 إلى 1.0)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Weather")
+    float WeatherIntensity = 0.0f;
+
+    // هل الجو الحالي أمطار (مفيد لربطها مباشرة بتحول الأرض إلى طين)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Weather")
+    bool bIsRaining = false;
+
+    // هل الجو الحالي ثلوج
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Weather")
+    bool bIsSnowing = false;
+
+    // مدى الرؤية بالأمتار
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Visibility")
+    float VisibilityDistanceMeters = 900.0f;
+
+    // درجة الحرارة المحسوسة في روسيا (مئوية)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Temperature")
+    float RussiaTemperatureCelsius = -6.0f;
+
+    // تأثير الثلج والمطر والضباب على الحركة والقيادة
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Impact")
+    float MovementSpeedMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Impact")
+    float VehicleGripMultiplier = 1.0f;
+
+    // هل يحتاج اللاعب لملابس شتوية ثقيلة لتفادي برودة الجو؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Russia|Survival")
+    bool bNeedsWinterGear = true;
+};
+
+UCLASS()
+class ACrimeBloodlineRussiaWeather : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineRussiaWeather();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Russia")
+    void UpdateRussiaWeather(float DeltaTime, ERussiaWeatherType TargetWeather, float TargetIntensity, bool bIsNightTime);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Russia")
+    float EvaluateColdExposure(bool bWearingWinterCoat, bool bInsideVehicleOrBuilding) const;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Russia")
+    FRussiaWeatherState RussiaWeatherState;
+};
