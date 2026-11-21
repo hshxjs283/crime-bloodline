@@ -1,0 +1,84 @@
+#include "CrimeBloodlineRubAlKhaliWeather.h"
+
+ACrimeBloodlineRubAlKhaliWeather::ACrimeBloodlineRubAlKhaliWeather()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    DesertWeatherState.CurrentWeather = ERubAlKhaliWeatherType::ClearDay;
+    DesertWeatherState.StormIntensity = 0.0f;
+    DesertWeatherState.VisibilityDistanceMeters = 1200.0f;
+    DesertWeatherState.DesertTemperatureCelsius = 44.0f;
+    DesertWeatherState.MovementSpeedMultiplier = 1.0f;
+    DesertWeatherState.VehicleSpeedMultiplier = 1.0f;
+    DesertWeatherState.bRequiresFaceProtection = false;
+}
+
+void ACrimeBloodlineRubAlKhaliWeather::UpdateDesertWeather(float DeltaTime, bool bIsNightTime, bool bTriggerSandstorm, float TargetStormSeverity)
+{
+    const float SafeDelta = FMath::Max(0.0f, DeltaTime);
+    const float ClampedTargetStorm = bTriggerSandstorm ? FMath::Clamp(TargetStormSeverity, 0.2f, 1.0f) : 0.0f;
+
+    DesertWeatherState.StormIntensity = FMath::FInterpTo(
+        DesertWeatherState.StormIntensity,
+        ClampedTargetStorm,
+        SafeDelta,
+        1.5f
+    );
+
+    if (DesertWeatherState.StormIntensity >= 0.35f)
+    {
+        DesertWeatherState.CurrentWeather = ERubAlKhaliWeatherType::Sandstorm;
+        DesertWeatherState.bRequiresFaceProtection = true;
+    }
+    else if (bIsNightTime)
+    {
+        DesertWeatherState.CurrentWeather = ERubAlKhaliWeatherType::ColdDesertNight;
+        DesertWeatherState.bRequiresFaceProtection = false;
+    }
+    else
+    {
+        DesertWeatherState.CurrentWeather = (DesertWeatherState.StormIntensity > 0.05f)
+            ? ERubAlKhaliWeatherType::HeatHaze
+            : ERubAlKhaliWeatherType::ClearDay;
+        DesertWeatherState.bRequiresFaceProtection = (DesertWeatherState.StormIntensity > 0.15f);
+    }
+
+    // حساب درجة الحرارة المحسوسة حسب الليل أو النهار وشدة العاصفة
+    const float BaseTemp = bIsNightTime ? 9.0f : 44.0f;
+    const float StormTempShift = bIsNightTime ? (-4.0f * DesertWeatherState.StormIntensity) : (-5.0f * DesertWeatherState.StormIntensity);
+    DesertWeatherState.DesertTemperatureCelsius = BaseTemp + StormTempShift;
+
+    // تقل الرؤية بشكل كبير أثناء العاصفة الترابية
+    const float MaxVisibility = bIsNightTime ? 450.0f : 1200.0f;
+    const float MinVisibility = 35.0f;
+    DesertWeatherState.VisibilityDistanceMeters = FMath::Lerp(MaxVisibility, MinVisibility, DesertWeatherState.StormIntensity);
+
+    // تأثير العاصفة على حركة اللاعب والسيارات
+    DesertWeatherState.MovementSpeedMultiplier = FMath::Clamp(1.0f - (DesertWeatherState.StormIntensity * 0.42f), 0.50f, 1.0f);
+    DesertWeatherState.VehicleSpeedMultiplier = FMath::Clamp(1.0f - (DesertWeatherState.StormIntensity * 0.35f), 0.55f, 1.0f);
+}
+
+float ACrimeBloodlineRubAlKhaliWeather::EvaluateDustAndHeatImpact(bool bWearingFaceMask, bool bInsideVehicle) const
+{
+    float ExposurePenalty = DesertWeatherState.StormIntensity * 12.0f;
+
+    if (DesertWeatherState.DesertTemperatureCelsius >= 40.0f)
+    {
+        ExposurePenalty += 6.0f;
+    }
+    else if (DesertWeatherState.DesertTemperatureCelsius <= 10.0f)
+    {
+        ExposurePenalty += 4.0f;
+    }
+
+    if (bWearingFaceMask)
+    {
+        ExposurePenalty *= 0.45f;
+    }
+
+    if (bInsideVehicle)
+    {
+        ExposurePenalty *= 0.30f;
+    }
+
+    return FMath::Max(0.0f, ExposurePenalty);
+}
