@@ -1,0 +1,58 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineWeatherMudBridge.generated.h"
+
+class ACrimeBloodlineRussiaWeather;
+class ACrimeBloodlineRubAlKhaliWeather;
+class ACrimeBloodlineMudSystem;
+
+UENUM(BlueprintType)
+enum class EActiveWorldRegion : uint8
+{
+    Russia      UMETA(DisplayName = "روسيا"),
+    RubAlKhali  UMETA(DisplayName = "الربع الخالي")
+};
+
+UCLASS()
+class ACrimeBloodlineWeatherMudBridge : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineWeatherMudBridge();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge")
+    EActiveWorldRegion ActiveRegion = EActiveWorldRegion::Russia;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge")
+    TObjectPtr<ACrimeBloodlineRussiaWeather> RussiaWeatherActor = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge")
+    TObjectPtr<ACrimeBloodlineRubAlKhaliWeather> DesertWeatherActor = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge")
+    TObjectPtr<ACrimeBloodlineMudSystem> MudSystemActor = nullptr;
+
+    // خيار إضافي في حال حدوث مطر نادر في الربع الخالي
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge|DesertRain")
+    bool bDesertRainActive = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Bridge|DesertRain", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float DesertRainIntensity = 0.0f;
+
+    // مزامنة حالة المطر مع نظام الطين وتقييم تأثيره على اللاعب والمركبات
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Bridge")
+    void SyncWeatherToMud(
+        float DeltaTime,
+        bool bIsDirtOrSoilTerrain,
+        bool bWearingMudBoots,
+        bool bHasAllWheelDrive,
+        bool bHasOffroadTires,
+        float CurrentVehicleSpeed
+    );
+
+    UFUNCTION(BlueprintPure, Category = "CrimeBloodline|Bridge")
+    void GetActiveRainState(bool& bOutIsRaining, float& OutRainIntensity) const;
+};
