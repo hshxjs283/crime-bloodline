@@ -1,0 +1,64 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineRubAlKhaliWeather.generated.h"
+
+UENUM(BlueprintType)
+enum class ERubAlKhaliWeatherType : uint8
+{
+    ClearDay        UMETA(DisplayName = "صحو نهار حار"),
+    ColdDesertNight UMETA(DisplayName = "ليل صحراوي بارد"),
+    Sandstorm       UMETA(DisplayName = "عاصفة ترابية شديدة"),
+    HeatHaze        UMETA(DisplayName = "سراب وحرارة مرتفعة")
+};
+
+USTRUCT(BlueprintType)
+struct FRubAlKhaliWeatherState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Weather")
+    ERubAlKhaliWeatherType CurrentWeather = ERubAlKhaliWeatherType::ClearDay;
+
+    // شدة العاصفة الترابية (0.0 لا توجد عاصفة، 1.0 عاصفة كاملة)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Storm")
+    float StormIntensity = 0.0f;
+
+    // مدى الرؤية بالامتار
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Visibility")
+    float VisibilityDistanceMeters = 1200.0f;
+
+    // درجة الحرارة المحسوسة بالصحراء (مئوية)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Temperature")
+    float DesertTemperatureCelsius = 44.0f;
+
+    // تأثير العاصفة والرمال على سرعة الحركة والقيادة
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Impact")
+    float MovementSpeedMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Impact")
+    float VehicleSpeedMultiplier = 1.0f;
+
+    // هل يحتاج اللاعب لغطاء وجه أو حماية من الغبار؟
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Desert|Survival")
+    bool bRequiresFaceProtection = false;
+};
+
+UCLASS()
+class ACrimeBloodlineRubAlKhaliWeather : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineRubAlKhaliWeather();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Desert")
+    void UpdateDesertWeather(float DeltaTime, bool bIsNightTime, bool bTriggerSandstorm, float TargetStormSeverity);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Desert")
+    float EvaluateDustAndHeatImpact(bool bWearingFaceMask, bool bInsideVehicle) const;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Desert")
+    FRubAlKhaliWeatherState DesertWeatherState;
+};
