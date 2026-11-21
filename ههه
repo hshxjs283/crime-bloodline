@@ -1,0 +1,142 @@
+#include "CrimeBloodlineLawAndGangs.h"
+
+ACrimeBloodlineLawAndGangs::ACrimeBloodlineLawAndGangs()
+{
+    PrimaryActorTick.bCanEverTick = false;
+    GangState.GangName = TEXT("أشباح الثمانين");
+    GangState.LeaderName = TEXT("قائد العصابة");
+    GangState.UnderbossName = TEXT("نائب القائد");
+    GangState.LeadershipState = EGangLeadershipState::ActiveBoss;
+    LegalStatus = ELegalStatus::Clear;
+}
+
+void ACrimeBloodlineLawAndGangs::HandleLeaderArrested()
+{
+    // عند القبض على القائد يتولى النائب القيادة مؤقتاً وتُفتح إمكانية مهمة تحريره
+    GangState.LeadershipState = EGangLeadershipState::ActingUnderboss;
+    LawState.bRescueMissionActive = true;
+    GangState.InfluencePoints = FMath::Max(0, GangState.InfluencePoints - 15);
+}
+
+void ACrimeBloodlineLawAndGangs::HandleLeaderEliminated(const FString& NewSuccessorName)
+{
+    // انتقال القيادة حسب الخلافة عند انتهاء حياة القائد
+    GangState.LeadershipState = EGangLeadershipState::SuccessionInEffect;
+    LawState.bRescueMissionActive = false;
+
+    if (!NewSuccessorName.IsEmpty())
+    {
+        GangState.LeaderName = NewSuccessorName;
+    }
+    else if (!GangState.UnderbossName.IsEmpty())
+    {
+        GangState.LeaderName = GangState.UnderbossName;
+    }
+
+    GangState.InfluencePoints = FMath::Max(0, GangState.InfluencePoints - 25);
+}
+
+void ACrimeBloodlineLawAndGangs::TriggerLeaderRescueMission(bool bMissionSucceeded)
+{
+    if (!LawState.bRescueMissionActive)
+    {
+        return;
+    }
+
+    LawState.bRescueMissionActive = false;
+
+    if (bMissionSucceeded)
+    {
+        GangState.LeadershipState = EGangLeadershipState::ActiveBoss;
+        GangState.InfluencePoints += 30;
+    }
+    else
+    {
+        // إذا فشلت عملية التحرير تنتقل القيادة بشكل أوسع أو تضعف العصابة
+        GangState.InfluencePoints = FMath::Max(0, GangState.InfluencePoints - 20);
+    }
+}
+
+void ACrimeBloodlineLawAndGangs::DeclareGangRivalry(bool bEnableWar)
+{
+    GangState.bIsAtWar = bEnableWar;
+    if (bEnableWar)
+    {
+        GangState.InfluencePoints += 10;
+    }
+}
+
+void ACrimeBloodlineLawAndGangs::ReportCrimeAndGatherEvidence(float AddedEvidence)
+{
+    LawState.EvidenceStrength = FMath::Clamp(LawState.EvidenceStrength + AddedEvidence, 0.0f, 100.0f);
+
+    if (LawState.EvidenceStrength >= 65.0f)
+    {
+        LegalStatus = ELegalStatus::Wanted;
+    }
+    else if (LawState.EvidenceStrength >= 25.0f)
+    {
+        LegalStatus = ELegalStatus::UnderWatch;
+    }
+}
+
+bool ACrimeBloodlineLawAndGangs::ConductTrialAndCheckGuilt()
+{
+    LegalStatus = ELegalStatus::OnTrial;
+
+    // وجود محامي دفاع يقلل من وزن الأدلة ضد اللاعب
+    const float AttorneyReduction = LawState.bHasDefenseAttorney ? 20.0f : 0.0f;
+    const float EffectiveCaseScore = FMath::Clamp(LawState.EvidenceStrength - AttorneyReduction, 0.0f, 100.0f);
+
+    const bool bFoundGuilty = (EffectiveCaseScore >= 50.0f);
+
+    if (bFoundGuilty)
+    {
+        LegalStatus = ELegalStatus::Imprisoned;
+        LawState.SentenceDaysRemaining = FMath::Clamp(FMath::RoundToInt(EffectiveCaseScore / 10.0f), 1, 15);
+    }
+    else
+    {
+        LegalStatus = ELegalStatus::Clear;
+        LawState.EvidenceStrength = 0.0f;
+        LawState.SentenceDaysRemaining = 0;
+    }
+
+    return bFoundGuilty;
+}
+
+void ACrimeBloodlineLawAndGangs::SubmitCourtAppeal()
+{
+    if ((LegalStatus == ELegalStatus::Imprisoned || LegalStatus == ELegalStatus::OnTrial) && !LawState.bAppealSubmitted)
+    {
+        LawState.bAppealSubmitted = true;
+        LegalStatus = ELegalStatus::Appealing;
+
+        // تخفيف جزئي للعقوبة عند قبول الاستئناف المبدئي
+        if (LawState.SentenceDaysRemaining > 1)
+        {
+            LawState.SentenceDaysRemaining -= 1;
+        }
+        LegalStatus = ELegalStatus::Imprisoned;
+    }
+}
+
+void ACrimeBloodlineLawAndGangs::AdvancePrisonDay(float MealQuality, float ActivityBonus)
+{
+    if (LegalStatus != ELegalStatus::Imprisoned)
+    {
+        return;
+    }
+
+    LawState.SentenceDaysRemaining = FMath::Max(0, LawState.SentenceDaysRemaining - 1);
+
+    const float RespectDelta = ((MealQuality - 1.0f) * 5.0f) + ActivityBonus;
+    LawState.PrisonRespect = FMath::Clamp(LawState.PrisonRespect + RespectDelta, 0.0f, 100.0f);
+
+    if (LawState.SentenceDaysRemaining == 0)
+    {
+        LegalStatus = ELegalStatus::Clear;
+        LawState.EvidenceStrength = 0.0f;
+        LawState.bAppealSubmitted = false;
+    }
+}
