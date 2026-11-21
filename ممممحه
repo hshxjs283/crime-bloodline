@@ -1,0 +1,72 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineSurvivalVitals.generated.h"
+
+UENUM(BlueprintType)
+enum class ECharacterArchetype : uint8
+{
+    Hitman      UMETA(DisplayName = "القاتل المأجور"),
+    Operative   UMETA(DisplayName = "لينا - العميلة"),
+    GangMember  UMETA(DisplayName = "عضو العصابة")
+};
+
+USTRUCT(BlueprintType)
+struct FSurvivalVitalsState
+{
+    GENERATED_BODY()
+
+    // من 0.0 إلى 100.0 (كلما قلّ الجوع والعطش والتعب كان الوضع أفضل، أو نعتمد نسبة الحاجة 0..100)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Vitals")
+    float HungerNeed = 15.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Vitals")
+    float ThirstNeed = 20.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Vitals")
+    float FatigueLevel = 10.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Health")
+    float Health = 100.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Health")
+    float Stamina = 100.0f;
+
+    // معاملات الأداء الناتجة عن الحالة الجسدية ونوع الشخصية
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Performance")
+    float MovementSpeedMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Performance")
+    float MeleeDamageMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Survival|Performance")
+    float AgilityMultiplier = 1.0f;
+};
+
+UCLASS()
+class ACrimeBloodlineSurvivalVitals : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineSurvivalVitals();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void ConfigureArchetypeDefaults(ECharacterArchetype NewArchetype);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void TickSurvivalVitals(float DeltaTime, float AmbientTemperatureCelsius, bool bSprinting, bool bHighHeatRegion);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void ConsumeFoodAndWater(float FoodAmount, float WaterAmount, float RestAmount);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Survival")
+    void ApplyInjury(float DamageAmount);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Survival")
+    ECharacterArchetype CharacterArchetype = ECharacterArchetype::Hitman;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Survival")
+    FSurvivalVitalsState VitalsState;
+};
