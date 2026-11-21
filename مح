@@ -1,0 +1,120 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineTypes.h"
+#include "CrimeBloodlineLawAndGangs.generated.h"
+
+UENUM(BlueprintType)
+enum class ELegalStatus : uint8
+{
+    Clear           UMETA(DisplayName = "سجل نظيف"),
+    UnderWatch      UMETA(DisplayName = "تحت المراقبة"),
+    Wanted          UMETA(DisplayName = "مطلوب للشرطة"),
+    OnTrial         UMETA(DisplayName = "قيد المحاكمة"),
+    Imprisoned      UMETA(DisplayName = "داخل السجن"),
+    Appealing       UMETA(DisplayName = "مرحلة استئناف")
+};
+
+UENUM(BlueprintType)
+enum class EGangLeadershipState : uint8
+{
+    ActiveBoss          UMETA(DisplayName = "القائد نشط"),
+    ActingUnderboss     UMETA(DisplayName = "النائب يقود مؤقتاً"),
+    SuccessionInEffect  UMETA(DisplayName = "انتقال القيادة بالخلافة")
+};
+
+USTRUCT(BlueprintType)
+struct FGangFactionState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    FString GangName = TEXT("أشباح الثمانين");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    FString LeaderName = TEXT("قائد العصابة");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    FString UnderbossName = TEXT("نائب القائد");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    int32 InfluencePoints = 100;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    int32 MemberCount = 12;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    bool bIsAtWar = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gang")
+    EGangLeadershipState LeadershipState = EGangLeadershipState::ActiveBoss;
+};
+
+USTRUCT(BlueprintType)
+struct FCourtAndPrisonState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Court")
+    float EvidenceStrength = 0.0f; // من 0.0 إلى 100.0
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Court")
+    bool bHasDefenseAttorney = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Court")
+    bool bAppealSubmitted = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Prison")
+    int32 SentenceDaysRemaining = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Prison")
+    float PrisonRespect = 50.0f; // علاقة اللاعب بالسجناء والحراس
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Law|Prison")
+    bool bRescueMissionActive = false;
+};
+
+UCLASS()
+class ACrimeBloodlineLawAndGangs : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineLawAndGangs();
+
+    // إدارة العصابات والقيادة والتحالفات
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Gang")
+    void HandleLeaderArrested();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Gang")
+    void HandleLeaderEliminated(const FString& NewSuccessorName);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Gang")
+    void TriggerLeaderRescueMission(bool bMissionSucceeded);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Gang")
+    void DeclareGangRivalry(bool bEnableWar);
+
+    // الشرطة والمحاكمة والسجن
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Law")
+    void ReportCrimeAndGatherEvidence(float AddedEvidence);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Law")
+    bool ConductTrialAndCheckGuilt();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Law")
+    void SubmitCourtAppeal();
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Law")
+    void AdvancePrisonDay(float MealQuality = 1.0f, float ActivityBonus = 5.0f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Gang")
+    FGangFactionState GangState;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Law")
+    ELegalStatus LegalStatus = ELegalStatus::Clear;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Law")
+    FCourtAndPrisonState LawState;
+};
