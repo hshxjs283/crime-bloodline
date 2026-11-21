@@ -1,0 +1,88 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "CrimeBloodlineTypes.h"
+#include "CrimeBloodlineEconomyNews.generated.h"
+
+UENUM(BlueprintType)
+enum class EMarketGoodType : uint8
+{
+    FoodAndWater  UMETA(DisplayName = "طعام ومياه"),
+    Fuel          UMETA(DisplayName = "وقود"),
+    WeaponsAmmo   UMETA(DisplayName = "أسلحة وذخيرة"),
+    Contraband    UMETA(DisplayName = "مواد ممنوعة"),
+    RealEstate    UMETA(DisplayName = "عقارات ومقرات")
+};
+
+USTRUCT(BlueprintType)
+struct FEconomyMarketState
+{
+    GENERATED_BODY()
+
+    // معاملات الأسعار (1.0 = سعر طبيعي، أعلى = غلاء، أقل = رخص)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    float FoodWaterMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    float FuelMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    float WeaponsAmmoMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    float ContrabandMultiplier = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Economy")
+    float InflationRate = 0.05f;
+};
+
+USTRUCT(BlueprintType)
+struct FSpyAndMediaState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spy")
+    int32 ActiveSpiesCount = 2;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spy")
+    float IntelNetworkStrength = 25.0f; // من 0 إلى 100
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+    FString LatestHeadline = TEXT("هدوء حذر في الشوارع وتقارير عن تحركات غير معتادة");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+    bool bRadioBroadcastActive = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+    bool bNewspaperEditionPublished = true;
+};
+
+UCLASS()
+class ACrimeBloodlineEconomyNews : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    ACrimeBloodlineEconomyNews();
+
+    // الاقتصاد وتغير الأسعار
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Economy")
+    void RecalculateMarketPrices(bool bRegionalCrisis, bool bGangWarActive);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|Economy")
+    float GetCurrentItemPrice(EMarketGoodType GoodType, float BasePrice) const;
+
+    // الجواسيس والأخبار والراديو والصحف
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|SpyMedia")
+    void DeploySpyAgent(int32 RecruitmentCost = 100);
+
+    UFUNCTION(BlueprintCallable, Category = "CrimeBloodline|SpyMedia")
+    void GatherSpyIntelligenceAndPublishNews(const FString& EventSummary);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|Economy")
+    FEconomyMarketState MarketState;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CrimeBloodline|SpyMedia")
+    FSpyAndMediaState SpyMediaState;
+};
